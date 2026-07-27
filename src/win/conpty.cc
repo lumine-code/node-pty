@@ -104,22 +104,23 @@ void SetupExitCallback(Napi::Env env, Napi::Function cb, pty_baton* baton) {
     }
 
     auto status = tsfn.BlockingCall(exit_event, callback); // In main thread
-    switch (status) {
-      case napi_closing:
-        break;
-
-      case napi_queue_full:
-        Napi::Error::Fatal("SetupExitCallback", "Queue was full");
-
-      case napi_ok:
-        if (tsfn.Release() != napi_ok) {
-          Napi::Error::Fatal("SetupExitCallback", "ThreadSafeFunction.Release() failed");
-        }
-        break;
-
-      default:
-        Napi::Error::Fatal("SetupExitCallback", "ThreadSafeFunction.BlockingCall() failed");
+    if (status != napi_ok) {
+      // The call never reached JS, so `callback` did not run and nothing took
+      // ownership of the event.
+      delete exit_event;
     }
+
+    // Release exactly once to balance the acquisition made by
+    // ThreadSafeFunction::New, whatever the call returned.
+    //
+    // A failure here is normal rather than exceptional: when the host is
+    // shutting down (window reload, app quit) the environment stops accepting
+    // calls and this thread observes napi_closing. The upstream code answered
+    // that with Napi::Error::Fatal, which aborts the entire process -- so a
+    // shell exiting at the wrong moment took the host down with it. Nothing the
+    // caller did is wrong, so there is nothing to report; let the thread finish
+    // quietly and allow the finalizer to clean up.
+    tsfn.Release();
   });
 }
 
