@@ -6,8 +6,8 @@
   "scripts": {
     "start": "electron ."
   },
-  "repository": "https://github.com/microsoft/node-pty",
-  "author": "Tyriar",
+  "repository": "https://github.com/lumine-code/node-pty",
+  "author": "lumine-code",
   "dependencies": {
     "@xterm/xterm": "^6.0.0",
     "electron": "^42.2.0"

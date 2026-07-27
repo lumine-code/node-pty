@@ -1,27 +1,32 @@
 # node-pty
 
-[![Build Status](https://dev.azure.com/vscode/node-pty/_apis/build/status/Microsoft.node-pty?branchName=main)](https://dev.azure.com/vscode/node-pty/_build/latest?definitionId=11&branchName=main)
+Forks processes with pseudoterminal file descriptors.
 
-`forkpty(3)` bindings for node.js. This allows you to fork processes with pseudoterminal file descriptors. It returns a terminal object which allows reads and writes.
+`forkpty(3)` bindings for Node.js. Forked processes get a pseudoterminal file
+descriptor and are returned as a terminal object that can be read from and
+written to. This is what lets a program *think* it is attached to a terminal, so
+it emits control sequences instead of plain output.
 
-This is useful for:
+## Features
 
-- Writing a terminal emulator (eg. via [xterm.js](https://github.com/sourcelair/xterm.js)).
-- Getting certain programs to *think* you're a terminal, such as when you need a program to send you control sequences.
+- **Cross-platform**: runs on Linux, macOS, and Windows from one API.
+- **ConPTY**: uses the Windows pseudoconsole API on Windows 10 1809 and later.
+- **Flow control**: pauses and resumes the child with configurable XON/XOFF codes.
+- **Teardown safe**: a pty exiting while the host environment is shutting down
+  no longer aborts the process.
+- **Prebuilds**: ships prebuilt binaries and falls back to a source build.
 
-`node-pty` supports Linux, macOS and Windows. Windows support is possible by utilizing the [Windows conpty API](https://blogs.msdn.microsoft.com/commandline/2018/08/02/windows-command-line-introducing-the-windows-pseudo-console-conpty/) on Windows 1809+.
+## Installation
 
-> **Note:** Support for the `winpty` library has been removed. Windows 10 version 1809 (build 18309) or later is now required.
+```sh
+npm install @lumine-code/node-pty
+```
 
-## API
-
-The full API for node-pty is contained within the [TypeScript declaration file](https://github.com/microsoft/node-pty/blob/main/typings/node-pty.d.ts), use the branch/tag picker in GitHub (`w`) to navigate to the correct version of the API.
-
-## Example Usage
+## Usage
 
 ```js
-import * as os from 'node:os';
-import * as pty from 'node-pty';
+const os = require('node:os');
+const pty = require('@lumine-code/node-pty');
 
 const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
 
@@ -42,123 +47,90 @@ ptyProcess.resize(100, 40);
 ptyProcess.write('ls\r');
 ```
 
-## Real-world Uses
+## API
 
-`node-pty` powers many different terminal emulators, including:
+The full API is described by the TypeScript declaration file at
+[typings/node-pty.d.ts](typings/node-pty.d.ts).
 
-- [Microsoft Visual Studio Code](https://code.visualstudio.com)
-- [Hyper](https://hyper.is/)
-- [Upterm](https://github.com/railsware/upterm)
-- [Script Runner](https://github.com/ioquatix/script-runner) for Atom.
-- [Theia](https://github.com/theia-ide/theia)
-- [FreeMAN](https://github.com/matthew-matvei/freeman) file manager
-- [terminus](https://atom.io/packages/terminus) - An Atom plugin for providing terminals inside your Atom workspace.
-- [x-terminal](https://atom.io/packages/x-terminal) - Also an Atom plugin that provides terminals inside your Atom workspace.
-- [Termination](https://atom.io/packages/termination) - Also an Atom plugin that provides terminals inside your Atom workspace.
-- [atom-xterm](https://atom.io/packages/atom-xterm) - Also an Atom plugin that provides terminals inside your Atom workspace.
-- [electerm](https://github.com/electerm/electerm) Terminal/SSH/SFTP client(Linux, macOS, Windows).
-- [Extraterm](http://extraterm.org/)
-- [Wetty](https://github.com/krishnasrinivas/wetty) Browser based Terminal over HTTP and HTTPS
-- [nomad](https://github.com/lukebarnard1/nomad-term)
-- [DockerStacks](https://github.com/sfx101/docker-stacks) Local LAMP/LEMP stack using Docker
-- [TeleType](https://github.com/akshaykmr/TeleType): cli tool that allows you to share your terminal online conveniently. Show off mad cli-fu, help a colleague, teach, or troubleshoot.
-- [mesos-term](https://github.com/criteo/mesos-term): A web terminal for Apache Mesos. It allows to execute commands within containers.
-- [Commas](https://github.com/CyanSalt/commas): A hackable terminal and command runner.
-- [ENiGMA½ BBS Software](https://github.com/NuSkooler/enigma-bbs): A modern BBS software with a nostalgic flair!
-- [Tinkerun](https://github.com/tinkerun/tinkerun): A new way of running Tinker.
-- [Tess](https://tessapp.dev): Hackable, simple and rapid terminal for the new era of technology 👍
-- [NxShell](https://nxshell.github.io/): An easy to use new terminal for Windows/Linux/MacOS platform.
-- [OpenSumi](https://github.com/opensumi/core): A framework helps you quickly build Cloud or Desktop IDE products.
-- [Enjoy Git](https://github.com/huangcs427/enjoy-git-release): A modern Git client featuring an intuitive user interface, built with Electron, Vue 3, and TypeScript.
-- [Logos](https://github.com/zixiao-labs/logos): A Modern, Lightweight Code Editor, built with Electron, Vue 3, and TypeScript.
+### Flow control
 
-Do you use node-pty in your application as well? Please open a [Pull Request](https://github.com/Tyriar/node-pty/pulls) to include it here. We would love to have it in our list.
-
-## Building
-
-```bash
-# Install dependencies and build C++
-npm install
-# Compile TypeScript -> JavaScript
-npm run build
-```
-
-## Dependencies
-
-Node.JS 16 or Electron 19 is required to use `node-pty`. What version of node is supported is currently mostly bound to [whatever version Visual Studio Code is using](https://github.com/microsoft/node-pty/issues/557#issuecomment-1332193541).
-
-### Linux (apt)
-
-```sh
-sudo apt install -y make python build-essential
-```
-
-### macOS
-
-Xcode is needed to compile the sources, this can be installed from the App Store.
-
-### Windows
-
-`npm install` requires some tools to be present in the system like Python and C++ compiler. Windows users can easily install them by running the following command in PowerShell as administrator. For more information see https://github.com/felixrieseberg/windows-build-tools:
-
-```sh
-npm install --global --production windows-build-tools
-```
-
-The following are also needed:
-
-- [Windows SDK](https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk) - only the "Desktop C++ Apps" components are needed to be installed
-- Spectre-mitigated libraries - In order to avoid the build error "MSB8040: Spectre-mitigated libraries are required for this project", open the Visual Studio Installer, press the Modify button, navigate to the "Individual components" tab, search "Spectre", and install an option like "MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs (Latest)" (the exact option to install will depend on your version of Visual Studio as well as your operating system architecture)
-
-## Debugging
-
-[The wiki](https://github.com/Microsoft/node-pty/wiki/Debugging) contains instructions for debugging node-pty.
-
-## Security
-
-All processes launched from node-pty will launch at the same permission level of the parent process. Take care particularly when using node-pty inside a server that's accessible on the internet. We recommend launching the pty inside a container to protect your host machine.
-
-## Thread Safety
-
-Note that node-pty is not thread safe so running it across multiple worker threads in node.js could cause issues.
-
-## Flow Control
-
-Automatic flow control can be enabled by either providing `handleFlowControl = true` in the constructor options or setting it later on:
+Automatic flow control is enabled with `handleFlowControl` in the constructor
+options, or by setting it later:
 
 ```js
 const PAUSE = '\x13';   // XOFF
 const RESUME = '\x11';  // XON
 
-const ptyProcess = pty.spawn(shell, [], {handleFlowControl: true});
+const ptyProcess = pty.spawn(shell, [], { handleFlowControl: true });
 
-// flow control in action
-ptyProcess.write(PAUSE);  // pty will block and pause the child program
-...
-ptyProcess.write(RESUME); // pty will enter flow mode and resume the child program
+ptyProcess.write(PAUSE);  // pty blocks and pauses the child program
+ptyProcess.write(RESUME); // pty resumes the child program
 
-// temporarily disable/re-enable flow control
 ptyProcess.handleFlowControl = false;
-...
-ptyProcess.handleFlowControl = true;
 ```
 
-By default `PAUSE` and `RESUME` are XON/XOFF control codes (as shown above). To avoid conflicts in environments that use these control codes for different purposes the messages can be customized as `flowControlPause: string` and `flowControlResume: string` in the constructor options. `PAUSE` and `RESUME` are not passed to the underlying pseudoterminal if flow control is enabled.
+`PAUSE` and `RESUME` default to the XON/XOFF control codes above and are not
+forwarded to the pseudoterminal while flow control is enabled. Environments that
+use those codes for something else can override them with `flowControlPause` and
+`flowControlResume`.
+
+### Thread safety
+
+This package is not thread safe. Driving it from several worker threads in the
+same process can corrupt its state.
+
+### Security
+
+Processes launched from a pty run at the same permission level as the parent
+process. Take particular care when a pty is reachable from a network service;
+running it inside a container protects the host machine.
+
+## Building
+
+```sh
+npm install    # install dependencies and build the native addon
+npm run build  # compile TypeScript to JavaScript
+```
+
+Node.js 24 or newer is required.
+
+### Linux
+
+```sh
+sudo apt install -y make python3 build-essential
+```
+
+### macOS
+
+Xcode is required to compile the sources and can be installed from the App Store.
+
+### Windows
+
+A Python interpreter and a C++ toolchain are required. The following are also
+needed:
+
+- Windows SDK, "Desktop C++ Apps" components only.
+- Spectre-mitigated libraries, otherwise the build fails with "MSB8040: Spectre-mitigated libraries are required for this project". Install them from the Visual Studio Installer under Individual components by searching for "Spectre".
 
 ## Troubleshooting
 
-### Powershell gives error 8009001d
+### PowerShell reports error 8009001d
 
-> Internal Windows PowerShell error.  Loading managed Windows PowerShell failed with error 8009001d.
+> Internal Windows PowerShell error. Loading managed Windows PowerShell failed with error 8009001d.
 
-This happens when PowerShell is launched with no `SystemRoot` environment variable present.
+This happens when PowerShell is launched with no `SystemRoot` environment
+variable present.
 
-## pty.js
+## Contributing
 
-This project is forked from [chjj/pty.js](https://github.com/chjj/pty.js) with the primary goals being to provide better support for later Node.js versions and Windows.
+Got ideas to make this package better, found a bug, or want to help add new features? Just drop your thoughts on GitHub. Any feedback is welcome!
 
 ## License
 
+Forked from [microsoft/node-pty](https://github.com/microsoft/node-pty), itself
+forked from [chjj/pty.js](https://github.com/chjj/pty.js).
+
+Copyright (c) 2026, lumine-code (MIT License).<br>
 Copyright (c) 2012-2015, Christopher Jeffrey (MIT License).<br>
 Copyright (c) 2016, Daniel Imms (MIT License).<br>
 Copyright (c) 2018, Microsoft Corporation (MIT License).
