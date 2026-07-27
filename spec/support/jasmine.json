@@ -4,7 +4,7 @@
     "*.test.js"
   ],
   "helpers": [
-    "helpers/jasmine.js"
+    "../spec/support/timeout.js"
   ],
   "env": {
     "stopSpecOnExpectationFailure": false,
