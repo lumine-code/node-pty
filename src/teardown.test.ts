@@ -21,8 +21,7 @@ const ITERATIONS = 10;
 // between a successful BlockingCall and its Release). It is kept as a cheap
 // guard on the shutdown path, not as a reproducer.
 describe('Environment teardown', () => {
-  it('should exit cleanly when a pty is still alive', function (done: Mocha.Done): void {
-    this.timeout(60000);
+  it('should exit cleanly when a pty is still alive', function (done: DoneFn): void {
 
     const script = [
       `const pty = require(${JSON.stringify(INDEX)});`,
@@ -39,7 +38,7 @@ describe('Environment teardown', () => {
       execFile(process.execPath, ['-e', script], (err, stdout, stderr) => {
         if (err) {
           const detail = (err as NodeJS.ErrnoException & { code?: number | string, signal?: string });
-          done(new Error(
+          done.fail(new Error(
             `child exited abnormally (code=${detail.code}, signal=${detail.signal}): ${String(stderr).trim()}`
           ));
           return;

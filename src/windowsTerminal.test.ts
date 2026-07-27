@@ -96,13 +96,11 @@ if (process.platform === 'win32') {
     describe(`WindowsTerminal (useConptyDll = ${useConptyDll})`, () => {
       describe('kill', () => {
         it('should not crash parent process', function (done) {
-          this.timeout(20000);
           const term = new WindowsTerminal('cmd.exe', [], { useConptyDll });
           term.on('exit', () => done());
           term.kill();
         });
-        it('should kill the process tree', function (done: Mocha.Done): void {
-          this.timeout(20000);
+        it('should kill the process tree', function (done: DoneFn): void {
           const term = new WindowsTerminal('cmd.exe', [], { useConptyDll });
           const socket = (term as any)._socket;
           let started = false;
@@ -146,7 +144,6 @@ if (process.platform === 'win32') {
 
       describe('pid', () => {
         it('should be 0 before ready and set after ready_datapipe (issue #763)', function (done) {
-          this.timeout(10000);
           const term = new WindowsTerminal('cmd.exe', '/c echo test', { useConptyDll });
 
           // pid may be 0 immediately after construction due to deferred connection
@@ -172,7 +169,6 @@ if (process.platform === 'win32') {
 
       describe('resize', () => {
         it('should throw a non-native exception when resizing an invalid value', function(done) {
-          this.timeout(20000);
           const term = new WindowsTerminal('cmd.exe', [], { useConptyDll });
           assert.throws(() => term.resize(-1, -1));
           assert.throws(() => term.resize(0, 0));
@@ -183,7 +179,6 @@ if (process.platform === 'win32') {
           term.kill();
         });
         it('should throw a non-native exception when resizing a killed terminal', function(done) {
-          this.timeout(20000);
           const term = new WindowsTerminal('cmd.exe', [], { useConptyDll });
           (<any>term)._defer(() => {
             term.once('exit', () => {
@@ -197,7 +192,6 @@ if (process.platform === 'win32') {
 
       describe('Args as CommandLine', () => {
         it('should not fail running a file containing a space in the path', function (done) {
-          this.timeout(10000);
           const spaceFolder = path.resolve(__dirname, '..', 'fixtures', 'space folder');
           if (!fs.existsSync(spaceFolder)) {
             fs.mkdirSync(spaceFolder);
@@ -225,7 +219,6 @@ if (process.platform === 'win32') {
 
       describe('env', () => {
         it('should set environment variables of the shell', function (done) {
-          this.timeout(10000);
           const term = new WindowsTerminal('cmd.exe', '/C echo %FOO%', { useConptyDll, env: { FOO: 'BAR' }});
           let result = '';
           term.on('data', (data) => {
@@ -240,7 +233,6 @@ if (process.platform === 'win32') {
 
       describe('connect failure', () => {
         it('should emit exit instead of an uncaught exception when CreateProcessW fails', function (done) {
-          this.timeout(10000);
           // Must exist (startProcess validates that) but not be a valid executable.
           const notAnExe = path.join(__dirname, '..', 'package.json');
           const term = new WindowsTerminal(notAnExe, [], { useConptyDll });
@@ -254,7 +246,6 @@ if (process.platform === 'win32') {
 
       describe('On close', () => {
         it('should return process zero exit codes', function (done) {
-          this.timeout(10000);
           const term = new WindowsTerminal('cmd.exe', '/C exit', { useConptyDll });
           term.on('exit', (code) => {
             assert.strictEqual(code, 0);
@@ -263,7 +254,6 @@ if (process.platform === 'win32') {
         });
 
         it('should return process non-zero exit codes', function (done) {
-          this.timeout(10000);
           const term = new WindowsTerminal('cmd.exe', '/C exit 2', { useConptyDll });
           term.on('exit', (code) => {
             assert.strictEqual(code, 2);
@@ -274,7 +264,6 @@ if (process.platform === 'win32') {
 
       describe('Write', () => {
         it('should accept input', function (done) {
-          this.timeout(10000);
           const term = new WindowsTerminal('cmd.exe', '', { useConptyDll });
           term.write('exit\r');
           term.on('exit', () => {
@@ -285,7 +274,6 @@ if (process.platform === 'win32') {
 
       describe('Regression for #921', () => {
         it('should not crash with concurrent kills while resizing/clearing', function (done) {
-          this.timeout(60000);
           const N = 30;
           const terms: WindowsTerminal[] = [];
           let ready = 0;
@@ -296,7 +284,15 @@ if (process.platform === 'win32') {
               clearInterval(spamInterval);
               spamInterval = undefined;
             }
-            done(err);
+            if (err) {
+
+              done.fail(err);
+
+            } else {
+
+              done();
+
+            }
           };
           const startRace = (): void => {
             spamInterval = setInterval(() => {

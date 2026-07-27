@@ -40,7 +40,7 @@
     "install": "node scripts/prebuild.js || node-gyp rebuild",
     "postinstall": "node scripts/post-install.js",
     "compileCommands": "node scripts/gen-compile-commands.js",
-    "test": "cross-env NODE_ENV=test mocha -R spec --exit lib/*.test.js",
+    "test": "cross-env NODE_ENV=test jasmine",
     "posttest": "npm run lint",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build"
@@ -49,15 +49,15 @@
     "node-addon-api": "^8.9.0"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
+    "@types/jasmine": "^6.0.0",
+    "jasmine": "^6.3.0",
     "@types/node": "^24.10.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^10.8.0",
     "globals": "^17.8.0",
-    "mocha": "^11.7.6",
-    "node-gyp": "^13.0.1",
+        "node-gyp": "^13.0.1",
     "ps-list": "^6.0.0",
     "typescript": "^5.9.3"
   }

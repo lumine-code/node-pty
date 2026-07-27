@@ -350,7 +350,7 @@ if (process.platform !== 'win32') {
               sub = data.toString().split(' ')[1].slice(0, -1);
               try {
                 fs.statSync(`/proc/${sub}/fd/${readFd}`);
-                done('not reachable');
+                done.fail('not reachable');
               } catch (error) {
                 assert.notStrictEqual((error as NodeJS.ErrnoException).message.indexOf('ENOENT'), -1);
               }
@@ -367,7 +367,6 @@ if (process.platform !== 'win32') {
           });
         });
         it('should not leak /dev/ptmx file descriptors after pty exit', async function(): Promise<void> {
-          this.timeout(30000);
 
           const getPtmxFDCount = (): number => {
             try {
@@ -398,7 +397,6 @@ if (process.platform !== 'win32') {
           );
         });
         it('should not leak kqueue file descriptors after pty exit', async function(): Promise<void> {
-          this.timeout(30000);
 
           const getKqueueFDCount = (): number => {
             try {

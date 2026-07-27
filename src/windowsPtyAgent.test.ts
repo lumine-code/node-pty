@@ -95,7 +95,6 @@ if (process.platform === 'win32') {
   describe('WindowsPtyAgent', () => {
     describe('connection timing (issue #763)', () => {
       it('should defer conptyNative.connect() until worker is ready', function (done) {
-        this.timeout(10000);
 
         const term = new WindowsPtyAgent(
           'cmd.exe',
@@ -127,7 +126,6 @@ if (process.platform === 'win32') {
       });
 
       it('should successfully spawn a process after deferred connection', function (done) {
-        this.timeout(10000);
 
         const term = new WindowsPtyAgent(
           'cmd.exe',
@@ -155,7 +153,6 @@ if (process.platform === 'win32') {
       });
 
       it('should allow async work between construction and connection (non-blocking)', function (done) {
-        this.timeout(10000);
 
         // Track the sequence of events to verify non-blocking behavior
         const events: string[] = [];
