@@ -29,7 +29,7 @@ export class WindowsPtyAgent {
   private _inSocket: Socket;
   private _outSocket: Socket;
   private _innerPid: number = 0;
-  private _closeTimeout: NodeJS.Timer | undefined;
+  private _closeTimeout: NodeJS.Timeout | undefined;
   private _exitCode: number | undefined;
   private _conoutSocketWorker: ConoutConnection;
 
@@ -191,7 +191,7 @@ export class WindowsPtyAgent {
     }
     return new Promise<number[]>(resolve => {
       const agent = fork(path.join(__dirname, 'conpty_console_list_agent'), [ this._innerPid.toString() ]);
-      agent.on('message', message => {
+      agent.on('message', (message: { consoleProcessList: number[] }) => {
         clearTimeout(timeout);
         resolve(message.consoleProcessList);
       });

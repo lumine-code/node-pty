@@ -142,7 +142,7 @@ export abstract class Terminal implements ITerminal {
       delete (this._socket as any)._decoder;
     }
     if (encoding) {
-      this._socket.setEncoding(encoding);
+      this._socket.setEncoding(encoding as BufferEncoding);
     }
   }
 
