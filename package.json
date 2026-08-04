@@ -2,7 +2,7 @@
   "name": "@lumine-code/node-pty",
   "author": "lumine-code",
   "description": "Forks processes with pseudoterminal file descriptors.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "license": "MIT",
   "main": "./lib/index.js",
   "types": "./typings/node-pty.d.ts",
@@ -57,7 +57,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^10.8.0",
     "globals": "^17.8.0",
-        "node-gyp": "^13.0.1",
+    "node-gyp": "^13.0.1",
     "ps-list": "^6.0.0",
     "typescript": "^5.9.3"
   }
