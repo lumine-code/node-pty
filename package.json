@@ -48,6 +48,13 @@
   "dependencies": {
     "node-addon-api": "^8.9.0"
   },
+  "lem": {
+    "hold": {
+      "typescript": "7.0 removed target ES5 and no longer finds @types from src/tsconfig.json, so it changes the shipped emit and the tsconfig; not worth diverging from an upstream this fork is level with",
+      "@types/node": "tracks the Node major engines targets, not the newest published",
+      "ps-list": "ESM-only from v7, so the bump edits an upstream-owned test file for a dev dependency"
+    }
+  },
   "devDependencies": {
     "@types/jasmine": "^6.0.0",
     "jasmine": "^6.3.0",
