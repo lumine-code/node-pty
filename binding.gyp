@@ -1,4 +1,7 @@
 {
+  'variables': {
+    'conpty_version%': '<!(node -p "require(\'fs\').readdirSync(\'third_party/conpty\')[0]")',
+  },
   'target_defaults': {
     'dependencies': [
       "<!(node -p \"require('node-addon-api').targets\"):node_addon_api_except",
@@ -54,6 +57,18 @@
           ],
           'libraries': [
             '-lshlwapi'
+          ],
+          # Electron rebuilds native targets after npm's postinstall hook. Copy
+          # the bundled ConPTY as part of this target so that rebuild cannot
+          # leave conpty.node without the DLL it loads at runtime.
+          'copies': [
+            {
+              'destination': '<(PRODUCT_DIR)/conpty',
+              'files': [
+                'third_party/conpty/<(conpty_version)/win10-<(target_arch)/conpty.dll',
+                'third_party/conpty/<(conpty_version)/win10-<(target_arch)/OpenConsole.exe',
+              ],
+            },
           ],
         },
         {
