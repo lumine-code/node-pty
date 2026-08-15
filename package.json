@@ -46,7 +46,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "node-addon-api": "^8.9.1"
+    "node-addon-api": "^8.9.2"
   },
   "lem": {
     "hold": {
@@ -58,11 +58,11 @@
   "devDependencies": {
     "@types/jasmine": "^6.0.0",
     "@types/node": "^24.10.1",
-    "@typescript-eslint/eslint-plugin": "^8.66.0",
-    "@typescript-eslint/parser": "^8.66.0",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "cross-env": "^10.1.0",
-    "eslint": "^10.8.0",
-    "globals": "^17.9.0",
+    "eslint": "^10.8.1",
+    "globals": "^17.11.0",
     "jasmine": "^6.3.0",
     "node-gyp": "^13.0.1",
     "ps-list": "^6.0.0",
