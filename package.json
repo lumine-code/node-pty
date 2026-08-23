@@ -56,7 +56,7 @@
     "cross-env": "^10.1.0",
     "eslint": "^10.8.1",
     "globals": "^17.11.0",
-    "jasmine": "^6.3.0",
+    "jasmine": "^7.0.0",
     "node-gyp": "^13.0.1",
     "ps-list": "^6.0.0",
     "typescript": "^5.9.3"
