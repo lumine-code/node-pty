@@ -36,5 +36,9 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test
+      - name: Install the process-tree example dependencies
+        run: npm ci --prefix examples/killDeepTree
+      - name: Test the webpack development server example
+        run: npm test --prefix examples/killDeepTree
       - name: Validate package contents
         run: npm pack --dry-run

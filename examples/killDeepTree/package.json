@@ -4,11 +4,13 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"start": "webpack-dev-server"
+		"start": "webpack serve",
+		"test": "node --test smoke.test.js"
 	},
 	"private": true,
 	"devDependencies": {
-		"webpack": "^4.28.4",
-		"webpack-dev-server": "^3.1.14"
+		"webpack": "^5.111.1",
+		"webpack-cli": "^7.2.3",
+		"webpack-dev-server": "^6.0.0"
 	}
 }

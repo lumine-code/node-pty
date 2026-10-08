@@ -7,6 +7,7 @@ Makefile.gyp
 node_modules/
 builderror.log
 lib/
+examples/killDeepTree/dist/
 npm-debug.log
 fixtures/space folder/
 .vscode/settings.json

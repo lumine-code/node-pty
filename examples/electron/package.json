@@ -4,12 +4,14 @@
   "description": "A minimal node-pty Electron example",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "download": "install-electron",
+    "rebuild": "node ../../scripts/rebuild-electron-example.js"
   },
   "repository": "https://github.com/lumine-code/node-pty",
   "author": "lumine-code",
   "dependencies": {
     "@xterm/xterm": "^6.0.0",
-    "electron": "^42.2.0"
+    "electron": "^44.7.0"
   }
 }
