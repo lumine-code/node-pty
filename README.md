@@ -2,7 +2,9 @@
 
 Forks processes with pseudoterminal file descriptors.
 
-`forkpty(3)` bindings for Node.js. Forked processes get a pseudoterminal file descriptor and are returned as a terminal object that can be read from and written to. This is what lets a program *think* it is attached to a terminal, so it emits control sequences instead of plain output.
+Fork of [microsoft/node-pty](https://github.com/microsoft/node-pty).
+
+`forkpty(3)` bindings for Node.js. Forked processes get a pseudoterminal file descriptor and are returned as a terminal object that can be read from and written to. This is what lets a program _think_ it is attached to a terminal, so it emits control sequences instead of plain output.
 
 ## Features
 
@@ -21,26 +23,26 @@ npm install @lumine-code/node-pty
 ## Usage
 
 ```js
-const os = require('node:os');
-const pty = require('@lumine-code/node-pty');
+const os = require("node:os");
+const pty = require("@lumine-code/node-pty");
 
-const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+const shell = os.platform() === "win32" ? "powershell.exe" : "bash";
 
 const ptyProcess = pty.spawn(shell, [], {
-  name: 'xterm-color',
+  name: "xterm-color",
   cols: 80,
   rows: 30,
   cwd: process.env.HOME,
-  env: process.env
+  env: process.env,
 });
 
 ptyProcess.onData((data) => {
   process.stdout.write(data);
 });
 
-ptyProcess.write('ls\r');
+ptyProcess.write("ls\r");
 ptyProcess.resize(100, 40);
-ptyProcess.write('ls\r');
+ptyProcess.write("ls\r");
 ```
 
 ## API
@@ -52,12 +54,12 @@ The full API is described by the TypeScript declaration file at [typings/node-pt
 Automatic flow control is enabled with `handleFlowControl` in the constructor options, or by setting it later:
 
 ```js
-const PAUSE = '\x13';   // XOFF
-const RESUME = '\x11';  // XON
+const PAUSE = "\x13"; // XOFF
+const RESUME = "\x11"; // XON
 
 const ptyProcess = pty.spawn(shell, [], { handleFlowControl: true });
 
-ptyProcess.write(PAUSE);  // pty blocks and pauses the child program
+ptyProcess.write(PAUSE); // pty blocks and pauses the child program
 ptyProcess.write(RESUME); // pty resumes the child program
 
 ptyProcess.handleFlowControl = false;
