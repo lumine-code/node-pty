@@ -8,6 +8,8 @@ import { Socket } from 'net';
 import { EventEmitter2, IEvent } from './eventEmitter2';
 import { argsToCommandLine, IWindowsPtyAgentOptions, WindowsPtyAgent } from './windowsPtyAgent';
 import { IConoutConnection } from './windowsConoutConnection';
+import { loadNativeModule } from './utils';
+import { pollUntil } from './testUtils.test';
 
 function check(file: string, args: string | string[], expected: string): void {
   assert.equal(argsToCommandLine(file, args), expected);
@@ -131,6 +133,133 @@ if (process.platform === 'win32') {
   });
 
   describe('WindowsPtyAgent', () => {
+    [false, true].forEach(useConptyDll => {
+      describe(`closed sessions (useConptyDll = ${useConptyDll})`, () => {
+        function createAgent(connection?: TestConoutConnection, commandLine: string = ''): WindowsPtyAgent {
+          return new WindowsPtyAgent(
+            'cmd.exe', commandLine, Object.keys(process.env).map(k => `${k}=${process.env[k]}`),
+            process.cwd(), 80, 30, false, useConptyDll, false,
+            connection ? createTestAgentOptions(connection, 1000) : undefined
+          );
+        }
+
+        it('blocks operations immediately after kill while the exit notification is pending', () => {
+          const connection = new TestConoutConnection();
+          const term = createAgent(connection);
+          const native: IConptyNative = loadNativeModule('conpty').module;
+          // Observe the JS boundary without passing a closed handle to native code
+          // when this regression is run against an older implementation.
+          const resize = spyOn(native, 'resize').and.stub();
+          const clear = spyOn(native, 'clear').and.stub();
+          try {
+            term.kill();
+            assert.strictEqual(term.exitCode, undefined, 'closing must not invent a process exit notification');
+            assert.throws(() => term.resize(90, 40), /Cannot resize a pty that has already exited/);
+            term.clear();
+            assert.strictEqual(resize.calls.count(), 0);
+            assert.strictEqual(clear.calls.count(), 0);
+          } finally {
+            term.inSocket.destroy();
+            term.outSocket.destroy();
+          }
+        });
+
+        it('retires an unconnected session once and ignores late worker callbacks', () => {
+          const connection = new TestConoutConnection();
+          const term = createAgent(connection);
+          const native: IConptyNative = loadNativeModule('conpty').module;
+          const kill = spyOn(native, 'kill').and.callThrough();
+          const connect = spyOn(native, 'connect').and.callThrough();
+          let errors = 0;
+          term.onError(() => errors++);
+          try {
+            term.kill();
+            term.kill();
+            connection.fireReady();
+            connection.fireError(new Error('late worker error'));
+            assert.strictEqual(kill.calls.count(), 1);
+            assert.strictEqual(connect.calls.count(), 0);
+            assert.strictEqual(connection.connectSocketCallCount, 0);
+            assert.strictEqual(connection.isDisposed, true);
+            assert.strictEqual(term.inSocket.destroyed, true);
+            assert.strictEqual(term.outSocket.destroyed, true);
+            assert.strictEqual(term.innerPid, 0);
+            assert.strictEqual(errors, 0);
+            assert.throws(() => native.connect(term.pty, 'cmd.exe', process.cwd(), [], useConptyDll, () => {}), /Invalid pty handle/);
+          } finally {
+            term.inSocket.destroy();
+            term.outSocket.destroy();
+          }
+        });
+
+        it('ignores repeated native operations on a session closed before connection', () => {
+          const native: IConptyNative = loadNativeModule('conpty').module;
+          const term = native.startProcess('cmd.exe', 80, 30, false, `closed-${process.pid}-${Math.random()}`, false, useConptyDll);
+          native.kill(term.pty, useConptyDll);
+          assert.doesNotThrow(() => native.kill(term.pty, useConptyDll));
+          assert.doesNotThrow(() => native.resize(term.pty, 90, 40, useConptyDll));
+          assert.doesNotThrow(() => native.clear(term.pty, useConptyDll));
+          assert.throws(() => native.connect(term.pty, 'cmd.exe', process.cwd(), [], useConptyDll, () => {}), /Invalid pty handle/);
+        });
+
+        it('preserves the process exit callback after closing a connected session once', async () => {
+          const term = createAgent();
+          const native: IConptyNative = loadNativeModule('conpty').module;
+          const nativeKill = native.kill.bind(native);
+          const kill = spyOn(native, 'kill').and.callThrough();
+          const closed = new Promise<void>((resolve, reject) => {
+            term.outSocket.once('close', resolve);
+            term.onError(reject);
+          });
+          try {
+            await pollUntil(() => term.innerPid > 0, 10000, 10);
+            term.kill();
+            term.kill();
+            assert.strictEqual(kill.calls.count(), 1);
+            assert.strictEqual(term.exitCode, undefined, 'the native callback must still supply the exit code');
+            assert.throws(() => term.resize(90, 40), /Cannot resize a pty that has already exited/);
+            term.clear();
+            // Exercise the native guards as well as the agent's closed state.
+            nativeKill(term.pty, useConptyDll);
+            native.resize(term.pty, 90, 40, useConptyDll);
+            native.clear(term.pty, useConptyDll);
+            await closed;
+            await pollUntil(() => term.exitCode !== undefined, 10000, 10);
+            assert.strictEqual(typeof term.exitCode, 'number');
+          } finally {
+            term.kill();
+            term.inSocket.destroy();
+            term.outSocket.destroy();
+          }
+        });
+
+        it('keeps final output and the real exit code when the process finishes naturally', async () => {
+          const term = createAgent(undefined, '/d /c echo lifecycle-final-marker & exit /b 37');
+          const native: IConptyNative = loadNativeModule('conpty').module;
+          const kill = spyOn(native, 'kill').and.callThrough();
+          let output = '';
+          term.outSocket.on('data', data => output += data);
+          try {
+            await new Promise<void>((resolve, reject) => {
+              term.outSocket.once('close', resolve);
+              term.onError(reject);
+            });
+            assert.ok(output.includes('lifecycle-final-marker'), output);
+            assert.strictEqual(term.exitCode, 37);
+            term.kill();
+            term.kill();
+            term.clear();
+            assert.strictEqual(kill.calls.count(), 0);
+            assert.throws(() => term.resize(90, 40), /Cannot resize a pty that has already exited/);
+          } finally {
+            term.kill();
+            term.inSocket.destroy();
+            term.outSocket.destroy();
+          }
+        });
+      });
+    });
+
     describe('connection timing (issue #763)', () => {
       it('should fail without connecting when the worker times out', async () => {
         const connection = new TestConoutConnection();

@@ -43,6 +43,7 @@ export class WindowsPtyAgent {
   private _closeTimeout: NodeJS.Timeout | undefined;
   private _connectionTimeout: NodeJS.Timeout | undefined;
   private _exitCode: number | undefined;
+  private _isClosed: boolean = false;
   private _conoutSocketWorker: IConoutConnection;
 
   private _onError = new EventEmitter2<Error>();
@@ -151,6 +152,7 @@ export class WindowsPtyAgent {
       // connect() runs from the conout worker's onReady callback, so a throw
       // here would otherwise surface as an
       // uncaughtException with no way for the consumer to observe it.
+      this._isClosed = true;
       const code = /error code: (\d+)/.exec((err as Error).message)?.[1];
       this._exitCode = code ? parseInt(code, 10) : -1;
       try { this._ptyNative.kill(this._pty, this._useConptyDll); } catch { /* already gone */ }
@@ -167,6 +169,7 @@ export class WindowsPtyAgent {
     }
     this._clearConnectionTimeout();
     this._pendingPtyInfo = undefined;
+    this._isClosed = true;
     this._exitCode = -1;
     try { this._ptyNative.kill(this._pty, this._useConptyDll); } catch { /* already gone */ }
     this._conoutSocketWorker.dispose();
@@ -183,20 +186,37 @@ export class WindowsPtyAgent {
   }
 
   public resize(cols: number, rows: number): void {
-    if (this._exitCode !== undefined) {
+    if (this._isClosed || this._exitCode !== undefined) {
       throw new Error('Cannot resize a pty that has already exited');
     }
     this._ptyNative.resize(this._pty, cols, rows, this._useConptyDll);
   }
 
   public clear(): void {
+    if (this._isClosed || this._exitCode !== undefined) {
+      return;
+    }
     this._ptyNative.clear(this._pty, this._useConptyDll);
   }
 
   public kill(): void {
+    if (this._isClosed) {
+      return;
+    }
+    this._isClosed = true;
     // Prevent deferred connection from completing after kill
+    const wasPending = this._pendingPtyInfo !== undefined;
     this._clearConnectionTimeout();
     this._pendingPtyInfo = undefined;
+
+    // No process can supply an exit callback or final output before connect.
+    if (wasPending) {
+      this._ptyNative.kill(this._pty, this._useConptyDll);
+      this._conoutSocketWorker.dispose();
+      this._inSocket.destroy();
+      this._outSocket.destroy();
+      return;
+    }
 
     // Tell the agent to kill the pty, this releases handles to the process
     if (!this._useConptyDll) {
@@ -253,6 +273,7 @@ export class WindowsPtyAgent {
    * Triggered from the native side when a contpy process exits.
    */
   private _$onProcessExit(exitCode: number): void {
+    this._isClosed = true;
     this._exitCode = exitCode;
     if (!this._useConptyDll) {
       this._flushDataAndCleanUp();

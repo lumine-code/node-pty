@@ -351,15 +351,6 @@ static Napi::Value PtyConnect(const Napi::CallbackInfo& info) {
   const bool useConptyDll = info[4].As<Napi::Boolean>().Value();
   Napi::Function exitCallback = info[5].As<Napi::Function>();
 
-  pty_baton* handle;
-  {
-    std::lock_guard<std::mutex> lock(g_ptyHandlesMutex);
-    handle = get_pty_baton(lock, id);
-    if (!handle) {
-      throw Napi::Error::New(env, "Invalid pty handle");
-    }
-  }
-
   // Prepare command line
   std::unique_ptr<wchar_t[]> mutableCommandline = std::make_unique<wchar_t[]>(cmdline.length() + 1);
   HRESULT hr = StringCchCopyW(mutableCommandline.get(), cmdline.length() + 1, cmdline.c_str());
@@ -381,6 +372,15 @@ static Napi::Value PtyConnect(const Napi::CallbackInfo& info) {
   }
   std::vector<wchar_t> envV(envStr.cbegin(), envStr.cend());
   LPWSTR envArg = envV.empty() ? nullptr : envV.data();
+
+  // Keep the registry lease through process creation and exit-callback setup.
+  // A closed or already connected session must never reuse its native handles.
+  std::lock_guard<std::mutex> lock(g_ptyHandlesMutex);
+  pty_baton* handle = get_pty_baton(lock, id);
+  if (!handle || handle->hpc == nullptr || handle->hShell != nullptr ||
+      handle->hIn == nullptr || handle->hOut == nullptr) {
+    throw Napi::Error::New(env, "Invalid pty handle");
+  }
 
   ConnectNamedPipe(handle->hIn, nullptr);
   ConnectNamedPipe(handle->hOut, nullptr);
@@ -496,7 +496,7 @@ static Napi::Value PtyResize(const Napi::CallbackInfo& info) {
   std::lock_guard<std::mutex> lock(g_ptyHandlesMutex);
   const pty_baton* handle = get_pty_baton(lock, id);
 
-  if (handle != nullptr) {
+  if (handle != nullptr && handle->hpc != nullptr) {
     HANDLE hLibrary = LoadConptyDll(info, useConptyDll);
     bool fLoadedDll = hLibrary != nullptr;
     if (fLoadedDll)
@@ -538,7 +538,7 @@ static Napi::Value PtyClear(const Napi::CallbackInfo& info) {
   std::lock_guard<std::mutex> lock(g_ptyHandlesMutex);
   const pty_baton* handle = get_pty_baton(lock, id);
 
-  if (handle != nullptr) {
+  if (handle != nullptr && handle->hpc != nullptr) {
     HANDLE hLibrary = LoadConptyDll(info, useConptyDll);
     bool fLoadedDll = hLibrary != nullptr;
     if (fLoadedDll)
@@ -570,7 +570,7 @@ static Napi::Value PtyKill(const Napi::CallbackInfo& info) {
   std::lock_guard<std::mutex> lock(g_ptyHandlesMutex);
   pty_baton* handle = get_pty_baton(lock, id);
 
-  if (handle != nullptr) {
+  if (handle != nullptr && handle->hpc != nullptr) {
     HANDLE hLibrary = LoadConptyDll(info, useConptyDll);
     bool fLoadedDll = hLibrary != nullptr;
     if (fLoadedDll)
@@ -580,7 +580,9 @@ static Napi::Value PtyKill(const Napi::CallbackInfo& info) {
         useConptyDll ? "ConptyClosePseudoConsole" : "ClosePseudoConsole");
       if (pfnClosePseudoConsole)
       {
-        pfnClosePseudoConsole(handle->hpc);
+        const HPCON hpc = handle->hpc;
+        handle->hpc = nullptr;
+        pfnClosePseudoConsole(hpc);
       }
     }
     // Defensive: if PtyConnect was never called (or failed before closing the
@@ -595,6 +597,14 @@ static Napi::Value PtyKill(const Napi::CallbackInfo& info) {
     }
     if (useConptyDll && handle->hShell != nullptr) {
       TerminateProcess(handle->hShell, 1);
+    }
+    // Connected batons remain owned by their exit callback, which still needs
+    // hShell and must deliver the process's final exit code. Without a process
+    // there is no callback, so retire the closed registry entry here.
+    if (handle->hpc == nullptr && handle->hShell == nullptr) {
+      std::erase_if(ptyHandles, [id](const auto& ptyHandle) {
+        return ptyHandle->id == id;
+      });
     }
   }
 
