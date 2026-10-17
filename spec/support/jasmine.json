@@ -4,7 +4,8 @@
     "*.test.js"
   ],
   "helpers": [
-    "../spec/support/timeout.js"
+    "../spec/support/timeout.js",
+    "../spec/support/diagnostics.js"
   ],
   "env": {
     "stopSpecOnExpectationFailure": false,

@@ -6,6 +6,7 @@ Makefile.gyp
 *.target.gyp.mk
 node_modules/
 builderror.log
+test-results/
 lib/
 examples/killDeepTree/dist/
 npm-debug.log

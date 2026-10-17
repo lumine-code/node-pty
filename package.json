@@ -41,7 +41,7 @@
     "install": "node scripts/prebuild.js || node-gyp rebuild",
     "postinstall": "node scripts/post-install.js",
     "compileCommands": "node scripts/gen-compile-commands.js",
-    "test": "cross-env NODE_ENV=test jasmine",
+    "test": "node scripts/test.js",
     "posttest": "npm run lint",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build"
