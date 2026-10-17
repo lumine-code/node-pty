@@ -135,6 +135,13 @@ export class WindowsPtyAgent {
       writable: true
     });
     this._inSocket.setEncoding('utf8');
+    // The output channel owns the worker's lifetime. Retire it only after the
+    // final output has drained, including natural process exits and kills that
+    // produce no further data. Closing also releases the remaining input end.
+    this._outSocket.once('close', () => {
+      this._inSocket.destroy();
+      this._conoutSocketWorker.dispose();
+    });
   }
 
   private _completePtyConnection(): void {
@@ -232,14 +239,10 @@ export class WindowsPtyAgent {
         });
       });
       this._ptyNative.kill(this._pty, this._useConptyDll);
-      this._conoutSocketWorker.dispose();
     } else {
       // Close the input write handle to signal the end of session.
       this._inSocket.destroy();
       this._ptyNative.kill(this._pty, this._useConptyDll);
-      this._outSocket.on('data', () => {
-        this._conoutSocketWorker.dispose();
-      });
     }
   }
 
