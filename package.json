@@ -21,7 +21,8 @@
     "src/**/*.{cc,h}",
     "prebuilds/",
     "third_party/",
-    "typings/"
+    "typings/",
+    "THIRD_PARTY_NOTICES"
   ],
   "keywords": [
     "pty",
