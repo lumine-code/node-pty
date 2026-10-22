@@ -34,9 +34,9 @@
 typedef VOID* HPCON;
 typedef HRESULT (__stdcall *PFNCREATEPSEUDOCONSOLE)(COORD c, HANDLE hIn, HANDLE hOut, DWORD dwFlags, HPCON* phpcon);
 typedef HRESULT (__stdcall *PFNRESIZEPSEUDOCONSOLE)(HPCON hpc, COORD newSize);
-typedef HRESULT (__stdcall *PFNCLEARPSEUDOCONSOLE)(HPCON hpc);
+typedef decltype(&ConptyClearPseudoConsole) PFNCLEARPSEUDOCONSOLE;
 typedef void (__stdcall *PFNCLOSEPSEUDOCONSOLE)(HPCON hpc);
-typedef void (__stdcall *PFNRELEASEPSEUDOCONSOLE)(HPCON hpc);
+typedef decltype(&ConptyReleasePseudoConsole) PFNRELEASEPSEUDOCONSOLE;
 
 #endif
 
@@ -546,7 +546,8 @@ static Napi::Value PtyClear(const Napi::CallbackInfo& info) {
       PFNCLEARPSEUDOCONSOLE const pfnClearPseudoConsole = (PFNCLEARPSEUDOCONSOLE)GetProcAddress((HMODULE)hLibrary, "ConptyClearPseudoConsole");
       if (pfnClearPseudoConsole)
       {
-        pfnClearPseudoConsole(handle->hpc);
+        // Match frontend clear(): retain the active prompt/cursor row.
+        pfnClearPseudoConsole(handle->hpc, TRUE);
       }
     }
   }

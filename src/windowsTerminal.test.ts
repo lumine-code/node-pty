@@ -145,6 +145,8 @@ if (process.platform === 'win32') {
       describe('pid', () => {
         it('should be 0 before ready and set after ready_datapipe (issue #763)', function (done) {
           const term = new WindowsTerminal('cmd.exe', '/c echo test', { useConptyDll });
+          let exited = false;
+          term.once('exit', () => { exited = true; });
 
           // pid may be 0 immediately after construction due to deferred connection
           const initialPid = term.pid;
@@ -160,8 +162,14 @@ if (process.platform === 'win32') {
               if (initialPid === 0) {
                 assert.notStrictEqual(term.pid, initialPid, 'pid should be updated from initial value');
               }
-              term.on('exit', () => done());
-              term.kill();
+              // The short-lived shell can exit before this delayed PID check.
+              // Observe exit from construction instead of losing that event.
+              if (exited) {
+                done();
+              } else {
+                term.once('exit', () => done());
+                term.kill();
+              }
             }, 100);
           });
         });

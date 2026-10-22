@@ -1,5 +1,35 @@
 Third-party notices
 
+----- BEGIN THIRD-PARTY LICENSE: Microsoft.Windows.Console.ConPTY -----
+Components: third_party/conpty/1.25.260930003/win10-{x64,arm64}/{conpty.dll,OpenConsole.exe} and src/win/conpty.h.
+Source: https://api.nuget.org/v3-flatcontainer/microsoft.windows.console.conpty/1.25.260930003/microsoft.windows.console.conpty.1.25.260930003.nupkg
+Package revision: Microsoft.Windows.Console.ConPTY 1.25.260930003 (stable).
+Package SHA256: 02b07b349af66d801159bdf9e440d4a1ce78bb951f37fc8609731665afdae7ee
+Upstream project: https://github.com/microsoft/terminal
+
+MIT License
+
+Copyright (c) Microsoft Corporation.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+----- END THIRD-PARTY LICENSE: Microsoft.Windows.Console.ConPTY -----
+
 ----- BEGIN THIRD-PARTY LICENSE: upstream:microsoft_node-pty -----
 Source: https://github.com/microsoft/node-pty
 Revision: 22dd8bb121fa23a8a366aafae554a1ca7c96bba3
