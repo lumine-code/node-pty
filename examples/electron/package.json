@@ -12,6 +12,6 @@
   "author": "lumine-code",
   "dependencies": {
     "@xterm/xterm": "^6.0.0",
-    "electron": "^44.7.0"
+    "electron": "^45.0.0"
   }
 }
