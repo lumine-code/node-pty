@@ -208,6 +208,10 @@ if (process.platform === 'win32') {
 
         it('preserves the process exit callback after closing a connected session once', async () => {
           const term = createAgent();
+          // WindowsTerminal consumes this stream. A direct agent fixture must
+          // drain it too: unread output can hold EOF and the close event even
+          // after the native process exit callback has arrived.
+          term.outSocket.resume();
           const native: IConptyNative = loadNativeModule('conpty').module;
           const nativeKill = native.kill.bind(native);
           const kill = spyOn(native, 'kill').and.callThrough();
