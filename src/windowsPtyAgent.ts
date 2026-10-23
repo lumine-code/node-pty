@@ -237,6 +237,9 @@ export class WindowsPtyAgent {
     if (!this._useConptyDll) {
       this._inSocket.readable = false;
       this._outSocket.readable = false;
+      // The helper attaches asynchronously using the shell PID. Keep its
+      // console alive until that snapshot is collected; closing it first can
+      // retire the shell before AttachConsole has reached the target.
       this._getConsoleProcessList().then(consoleProcessList => {
         consoleProcessList.forEach((pid: number) => {
           try {
@@ -245,8 +248,9 @@ export class WindowsPtyAgent {
             // Ignore if process cannot be found (kill ESRCH error)
           }
         });
-      });
-      this._ptyNative.kill(this._pty, this._useConptyDll);
+      }, () => {
+        // A failed lookup must still release the native console below.
+      }).finally(() => this._ptyNative.kill(this._pty, this._useConptyDll));
     } else {
       // Close the input write handle to signal the end of session.
       this._inSocket.destroy();

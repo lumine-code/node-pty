@@ -133,6 +133,51 @@ if (process.platform === 'win32') {
   });
 
   describe('WindowsPtyAgent', () => {
+    describe('system console shutdown ordering', () => {
+      function fakeConnectedAgent(lookup: Promise<number[]>): any {
+        // Exercise ordering only: this fixture owns no console, native handle,
+        // process or socket and never enumerates or signals a real process.
+        const term: any = Object.create(WindowsPtyAgent.prototype);
+        term._isClosed = false;
+        term._useConptyDll = false;
+        term._pendingPtyInfo = undefined;
+        term._connectionTimeout = undefined;
+        term._inSocket = { readable: true };
+        term._outSocket = { readable: true };
+        term._pty = 1;
+        term._ptyNative = { kill: jasmine.createSpy('native close') };
+        term._getConsoleProcessList = jasmine.createSpy('console lookup').and.returnValue(lookup);
+        return term;
+      }
+
+      it('keeps the console alive until the process snapshot has completed', async () => {
+        let resolveLookup!: (value: number[]) => void;
+        const lookup = new Promise<number[]>(resolve => { resolveLookup = resolve; });
+        const term = fakeConnectedAgent(lookup);
+        term.kill();
+        term.kill();
+        assert.strictEqual(term._isClosed, true);
+        assert.strictEqual(term._getConsoleProcessList.calls.count(), 1);
+        assert.strictEqual(term._ptyNative.kill.calls.count(), 0);
+        resolveLookup([]);
+        await pollUntil(() => term._ptyNative.kill.calls.count() === 1, 10, 1000);
+        assert.deepStrictEqual(term._ptyNative.kill.calls.allArgs(), [[1, false]]);
+        term.kill();
+        assert.strictEqual(term._ptyNative.kill.calls.count(), 1);
+      });
+
+      it('still closes the console once when snapshot collection fails', async () => {
+        let rejectLookup!: (error: Error) => void;
+        const lookup = new Promise<number[]>((resolve, reject) => { void resolve; rejectLookup = reject; });
+        const term = fakeConnectedAgent(lookup);
+        term.kill();
+        assert.strictEqual(term._ptyNative.kill.calls.count(), 0);
+        rejectLookup(new Error('test-owned lookup failure'));
+        await pollUntil(() => term._ptyNative.kill.calls.count() === 1, 10, 1000);
+        assert.deepStrictEqual(term._ptyNative.kill.calls.allArgs(), [[1, false]]);
+      });
+    });
+
     [false, true].forEach(useConptyDll => {
       describe(`closed sessions (useConptyDll = ${useConptyDll})`, () => {
         function createAgent(connection?: TestConoutConnection, commandLine: string = ''): WindowsPtyAgent {
@@ -223,10 +268,11 @@ if (process.platform === 'win32') {
             await pollUntil(() => term.innerPid > 0, 10000, 10);
             term.kill();
             term.kill();
-            assert.strictEqual(kill.calls.count(), 1);
             assert.strictEqual(term.exitCode, undefined, 'the native callback must still supply the exit code');
             assert.throws(() => term.resize(90, 40), /Cannot resize a pty that has already exited/);
             term.clear();
+            await pollUntil(() => kill.calls.count() === 1, 10000, 10);
+            assert.strictEqual(kill.calls.count(), 1);
             // Exercise the native guards as well as the agent's closed state.
             nativeKill(term.pty, useConptyDll);
             native.resize(term.pty, 90, 40, useConptyDll);
