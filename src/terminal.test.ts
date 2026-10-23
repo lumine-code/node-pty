@@ -32,6 +32,9 @@ class TestTerminal extends Terminal {
   public clear(): void {
     throw new Error('Method not implemented.');
   }
+  public setParentWindow(handle: Buffer): boolean {
+    throw new Error('Method not implemented.');
+  }
   public destroy(): void {
     throw new Error('Method not implemented.');
   }
@@ -50,6 +53,16 @@ class TestTerminal extends Terminal {
 }
 
 describe('Terminal', () => {
+  it('returns false for parent-window requests on unsupported backends', function (done) {
+    const term = new terminalConstructor(SHELL, [], { useConptyDll: false });
+    term.once('exit', () => done());
+    try {
+      assert.strictEqual(term.setParentWindow(Buffer.alloc(process.arch === 'ia32' ? 4 : 8)), false);
+    } finally {
+      term.kill();
+    }
+  });
+
   describe('constructor', () => {
     it('should do basic type checks', () => {
       assert.throws(

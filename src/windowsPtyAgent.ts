@@ -206,6 +206,14 @@ export class WindowsPtyAgent {
     this._ptyNative.clear(this._pty, this._useConptyDll);
   }
 
+  /** Sends the host HWND to ConPTY before connection or after a window move. */
+  public setParentWindow(handle: Buffer): boolean {
+    if (this._isClosed || this._exitCode !== undefined) {
+      return false;
+    }
+    return this._ptyNative.reparent(this._pty, handle, this._useConptyDll);
+  }
+
   public kill(): void {
     if (this._isClosed) {
       return;

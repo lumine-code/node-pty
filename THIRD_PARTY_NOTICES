@@ -33,6 +33,7 @@ SOFTWARE.
 ----- BEGIN THIRD-PARTY LICENSE: upstream:microsoft_node-pty -----
 Source: https://github.com/microsoft/node-pty
 Revision: 22dd8bb121fa23a8a366aafae554a1ca7c96bba3
+Additional source revision: 1012192bc971f8db330483cc4efb104d90054658 (ConPTY Buffer HWND ownership API and ownership tests, adapted to the maintained teardown lifecycle).
 
 Original file: LICENSE
 

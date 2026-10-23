@@ -151,13 +151,16 @@ if (process.platform === 'win32') {
           // when this regression is run against an older implementation.
           const resize = spyOn(native, 'resize').and.stub();
           const clear = spyOn(native, 'clear').and.stub();
+          const reparent = spyOn(native, 'reparent').and.stub();
           try {
             term.kill();
             assert.strictEqual(term.exitCode, undefined, 'closing must not invent a process exit notification');
             assert.throws(() => term.resize(90, 40), /Cannot resize a pty that has already exited/);
             term.clear();
+            assert.strictEqual(term.setParentWindow(Buffer.alloc(process.arch === 'ia32' ? 4 : 8)), false);
             assert.strictEqual(resize.calls.count(), 0);
             assert.strictEqual(clear.calls.count(), 0);
+            assert.strictEqual(reparent.calls.count(), 0);
           } finally {
             term.inSocket.destroy();
             term.outSocket.destroy();
@@ -199,6 +202,7 @@ if (process.platform === 'win32') {
           assert.doesNotThrow(() => native.kill(term.pty, useConptyDll));
           assert.doesNotThrow(() => native.resize(term.pty, 90, 40, useConptyDll));
           assert.doesNotThrow(() => native.clear(term.pty, useConptyDll));
+          assert.strictEqual(native.reparent(term.pty, Buffer.alloc(process.arch === 'ia32' ? 4 : 8), useConptyDll), false);
           assert.throws(() => native.connect(term.pty, 'cmd.exe', process.cwd(), [], useConptyDll, () => {}), /Invalid pty handle/);
         });
 
@@ -223,6 +227,7 @@ if (process.platform === 'win32') {
             nativeKill(term.pty, useConptyDll);
             native.resize(term.pty, 90, 40, useConptyDll);
             native.clear(term.pty, useConptyDll);
+            assert.strictEqual(native.reparent(term.pty, Buffer.alloc(process.arch === 'ia32' ? 4 : 8), useConptyDll), false);
             await closed;
             await pollUntil(() => term.exitCode !== undefined, 10000, 10);
             assert.strictEqual(typeof term.exitCode, 'number');

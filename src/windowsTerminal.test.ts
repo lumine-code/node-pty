@@ -8,6 +8,7 @@ import * as assert from 'assert';
 import { WindowsTerminal } from './windowsTerminal';
 import * as path from 'path';
 import psList from 'ps-list';
+import { IWindowsPtyForkOptions } from './interfaces';
 
 interface IProcessState {
   // Whether the PID must exist or must not exist
@@ -280,8 +281,112 @@ if (process.platform === 'win32') {
         });
       });
 
+      describe('parent window', () => {
+        const user32 = `Add-Type -Namespace NodePtyTest -Name W -MemberDefinition '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow(); [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint f); public static ulong U(IntPtr h) { return unchecked((ulong)h.ToInt64()); }'`;
+        const started: Array<{ exited: Promise<void>, kill: () => void }> = [];
+
+        function rootOwnerArgs(delayMs: number, keepAliveSeconds: number = 0): string {
+          const script = [
+            user32,
+            `Start-Sleep -Milliseconds ${delayMs}`,
+            `$c = [NodePtyTest.W]::GetConsoleWindow()`,
+            `Write-Host ('console=' + [NodePtyTest.W]::U($c) + ' rootOwner=' + [NodePtyTest.W]::U([NodePtyTest.W]::GetAncestor($c, 3)) + ' end')`,
+            `Start-Sleep -Seconds ${keepAliveSeconds}`
+          ].join('; ');
+          return `-NoLogo -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(script, 'utf16le').toString('base64')}`;
+        }
+
+        function startPty(file: string, args: string | string[], options: IWindowsPtyForkOptions = {}): WindowsTerminal {
+          const term = new WindowsTerminal(file, args, { useConptyDll, ...options });
+          let hasExited = false;
+          const exited = new Promise<void>(resolve => term.once('exit', () => {
+            hasExited = true;
+            resolve();
+          }));
+          started.push({ exited, kill: () => { if (!hasExited) term.kill(); } });
+          return term;
+        }
+
+        afterEach(async () => {
+          const ptys = started.splice(0);
+          ptys.forEach(pty => pty.kill());
+          await Promise.all(ptys.map(pty => pty.exited));
+        }, 30000);
+
+        function readWindows(term: WindowsTerminal): Promise<{ console: bigint, rootOwner: bigint }> {
+          return new Promise((resolve, reject) => {
+            let output = '';
+            const timer = setTimeout(() => {
+              term.removeListener('data', onData);
+              reject(new Error(`No console ownership result: ${output}`));
+            }, 15000);
+            const onData = (data: string): void => {
+              output += data;
+              const match = /console=(\d+) rootOwner=(\d+) end/.exec(output);
+              if (match) {
+                clearTimeout(timer);
+                term.removeListener('data', onData);
+                resolve({ console: BigInt(match[1]), rootOwner: BigInt(match[2]) });
+              }
+            };
+            term.on('data', onData);
+          });
+        }
+
+        async function startHostWindow(): Promise<bigint> {
+          // Another test-owned hidden console stands in for the host HWND.
+          const hwnd = (await readWindows(startPty('powershell.exe', rootOwnerArgs(0, 60)))).console;
+          assert.notStrictEqual(hwnd, BigInt(0));
+          return hwnd;
+        }
+
+        function toHandle(hwnd: bigint): Buffer {
+          const handle = Buffer.alloc(process.arch === 'ia32' ? 4 : 8);
+          if (handle.length === 4) handle.writeUInt32LE(Number(hwnd));
+          else handle.writeBigUInt64LE(hwnd);
+          return handle;
+        }
+
+        it('sets the console owner when requested immediately after spawn', async () => {
+          const hostWindow = await startHostWindow();
+          const term = startPty('powershell.exe', rootOwnerArgs(0));
+          assert.strictEqual(term.setParentWindow(toHandle(hostWindow)), useConptyDll);
+          const windows = await readWindows(term);
+          assert.strictEqual(windows.rootOwner, useConptyDll ? hostWindow : windows.console);
+        }, 60000);
+
+        it('changes the console owner while the shell is running', async () => {
+          const hostWindow = await startHostWindow();
+          const term = startPty('powershell.exe', rootOwnerArgs(3000));
+          let sent: boolean | undefined;
+          term.once('data', () => { sent = term.setParentWindow(toHandle(hostWindow)); });
+          const windows = await readWindows(term);
+          assert.strictEqual(sent, useConptyDll);
+          assert.strictEqual(windows.rootOwner, useConptyDll ? hostWindow : windows.console);
+        }, 60000);
+
+        it('does not send a parent-window request after closing', async () => {
+          const term = startPty('cmd.exe', []);
+          const exited = new Promise<void>(resolve => term.once('exit', () => resolve()));
+          await new Promise<void>(resolve => term.once('data', () => resolve()));
+          term.kill();
+          assert.strictEqual(term.setParentWindow(toHandle(BigInt(0))), false);
+          await exited;
+          assert.strictEqual(term.setParentWindow(toHandle(BigInt(0))), false);
+        });
+
+        it('rejects values that are not pointer-sized native Buffer handles', () => {
+          const size = process.arch === 'ia32' ? 4 : 8;
+          const invalid: unknown[] = [Buffer.alloc(size - 1), Buffer.alloc(size + 1), Buffer.alloc(0), 1, BigInt(1), '0x1234', undefined];
+          const term = startPty('cmd.exe', []);
+          for (const handle of invalid) {
+            assert.throws(() => term.setParentWindow(handle as Buffer), /hwnd must be a Buffer the size of an HWND/);
+          }
+        });
+      });
+
       describe('Regression for #921', () => {
-        it('should not crash with concurrent kills while resizing/clearing', function (done) {
+        it('should not crash with concurrent kills while resizing/clearing/reparenting', function (done) {
           const N = 30;
           const terms: WindowsTerminal[] = [];
           let ready = 0;
@@ -310,6 +415,9 @@ if (process.platform === 'win32') {
                 } catch (e) { /* already exited */ }
                 try {
                   t.clear();
+                } catch (e) { /* already exited */ }
+                try {
+                  t.setParentWindow(Buffer.alloc(process.arch === 'ia32' ? 4 : 8));
                 } catch (e) { /* already exited */ }
               }
             }, 1);
