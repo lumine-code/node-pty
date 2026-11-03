@@ -56,11 +56,25 @@
     "@typescript-eslint/parser": "^8.72.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "cross-env": "^10.1.0",
-    "eslint": "^10.13.0",
-    "globals": "^17.13.0",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
     "jasmine": "^7.0.0",
     "node-gyp": "^13.1.0",
     "ps-list": "^9.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "overrides": {
+    "eslint@^10.14.0": {
+      "minimatch": "11.0.4"
+    },
+    "@eslint/config-array@0.23.5": {
+      "minimatch": "11.0.4"
+    },
+    "jasmine@^7.0.0": {
+      "glob": "14.0.3"
+    },
+    "@typescript-eslint/typescript-estree@8.72.1": {
+      "minimatch": "11.0.4"
+    }
   }
 }
