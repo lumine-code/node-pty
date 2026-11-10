@@ -52,8 +52,8 @@
   "devDependencies": {
     "@types/jasmine": "^7.0.0",
     "@types/node": "^24.19.2",
-    "@typescript-eslint/eslint-plugin": "^8.72.1",
-    "@typescript-eslint/parser": "^8.72.1",
+    "@typescript-eslint/eslint-plugin": "^8.72.2",
+    "@typescript-eslint/parser": "^8.72.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "cross-env": "^10.1.0",
     "eslint": "^10.14.0",
@@ -73,7 +73,7 @@
     "jasmine@^7.0.0": {
       "glob": "14.0.4"
     },
-    "@typescript-eslint/typescript-estree@8.72.1": {
+    "@typescript-eslint/typescript-estree@8.72.2": {
       "minimatch": "11.0.5"
     }
   }
