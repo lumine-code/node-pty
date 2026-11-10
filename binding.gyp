@@ -3,9 +3,11 @@
     'conpty_version%': '<!(node -p "require(\'fs\').readdirSync(\'third_party/conpty\')[0]")',
   },
   'target_defaults': {
-    'dependencies': [
-      "<!(node -p \"require('node-addon-api').targets\"):node_addon_api_except",
+    'include_dirs': [
+      "<!(node -p \"require('node-addon-api').include_dir\")",
     ],
+    'cflags!': ['-fno-exceptions'],
+    'cflags_cc!': ['-fno-exceptions'],
     # A callback that lands while the environment is tearing down cannot run JS.
     # Without these two defines node-addon-api escalates that to
     # napi_fatal_error and aborts the process. The graceful path in
@@ -14,16 +16,21 @@
     # below 10 it expects napi_pending_exception instead of napi_cannot_run_js
     # and never matches. napi_build_version is 10 on Node 22+ and Electron 43.
     'defines': [
+      'NAPI_CPP_EXCEPTIONS',
       'NAPI_VERSION=<(napi_build_version)',
       'NODE_API_SWALLOW_UNTHROWABLE_EXCEPTIONS',
     ],
     'conditions': [
       ['OS=="win"', {
+        'defines': ['_HAS_EXCEPTIONS=1'],
+        'defines!': ['_HAS_EXCEPTIONS=0'],
         'msvs_configuration_attributes': {
           'SpectreMitigation': 'Spectre'
         },
         'msvs_settings': {
           'VCCLCompilerTool': {
+            'ExceptionHandling': 1,
+            'EnablePREfast': 'true',
             'AdditionalOptions': [
               '/guard:cf',
               '/sdl',
@@ -43,6 +50,13 @@
         },
       }, {
         'cflags': ['-O2', '-fstack-protector-strong'],
+      }],
+      ['OS=="mac"', {
+        'xcode_settings': {
+          'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+          'CLANG_CXX_LIBRARY': 'libc++',
+          'MACOSX_DEPLOYMENT_TARGET': '10.7',
+        },
       }],
     ],
   },
