@@ -21,7 +21,7 @@ interface IWindowsProcessTreeResult {
 }
 
 function pollForProcessState(desiredState: IProcessState, intervalMs: number = 100, timeoutMs: number = 2000): Promise<void> {
-  return new Promise<void>(resolve => {
+  return new Promise<void>((resolve, reject) => {
     let tries = 0;
     const interval = setInterval(() => {
       psList({ all: true }).then(ps => {
@@ -53,28 +53,25 @@ function pollForProcessState(desiredState: IProcessState, intervalMs: number = 1
           assert.fail(`Bad process state, expected:\n${processListing}`);
           resolve();
         }
+      }).catch(error => {
+        clearInterval(interval);
+        reject(error);
       });
     }, intervalMs);
   });
 }
 
-function pollForProcessTreeSize(pid: number, size: number, intervalMs: number = 100, timeoutMs: number = 2000): Promise<IWindowsProcessTreeResult[]> {
-  return new Promise<IWindowsProcessTreeResult[]>(resolve => {
+function pollForProcessTreeSize(getProcessIds: () => number[] | undefined, size: number, intervalMs: number = 100, timeoutMs: number = 2000): Promise<IWindowsProcessTreeResult[]> {
+  return new Promise<IWindowsProcessTreeResult[]>((resolve, reject) => {
     let tries = 0;
     const interval = setInterval(() => {
       psList({ all: true }).then(ps => {
-        const openList: IWindowsProcessTreeResult[] = [];
-        openList.push(ps.filter(p => p.pid === pid).map(p => {
-          return { name: p.name, pid: p.pid };
-        })[0]);
-        const list: IWindowsProcessTreeResult[] = [];
-        while (openList.length) {
-          const current = openList.shift()!;
-          ps.filter(p => p.ppid === current.pid).map(p => {
-            return { name: p.name, pid: p.pid };
-          }).forEach(p => openList.push(p));
-          list.push(current);
-        }
+        // A stale PPID can name an unrelated process after Windows reuses an ID.
+        // The fixture processes report their own identities through this PTY.
+        const processIds = getProcessIds();
+        const list = (processIds || []).flatMap(pid =>
+          ps.filter(p => p.pid === pid).map(p => ({ name: p.name, pid: p.pid }))
+        );
         console.log('list', JSON.stringify(list));
         const success = list.length === size;
         if (success) {
@@ -87,6 +84,9 @@ function pollForProcessTreeSize(pid: number, size: number, intervalMs: number = 
           clearInterval(interval);
           assert.fail(`Bad process state, expected: ${size}, actual: ${list.length}`);
         }
+      }).catch(error => {
+        clearInterval(interval);
+        reject(error);
       });
     }, intervalMs);
   });
@@ -101,44 +101,61 @@ if (process.platform === 'win32') {
           term.on('exit', () => done());
           term.kill();
         });
-        it('should kill the process tree', function (done: DoneFn): void {
-          const term = new WindowsTerminal('cmd.exe', [], { useConptyDll });
+        it('should kill the process tree', async function (): Promise<void> {
+          const term = new WindowsTerminal('cmd.exe', ['/d', '/q'], { useConptyDll });
           const socket = (term as any)._socket;
-          let started = false;
-          const startPolling = (): void => {
-            if (started) {
-              return;
-            }
-            if (term.pid === 0) {
-              setTimeout(startPolling, 50);
-              return;
-            }
-            started = true;
-            // Start sub-processes
-            term.write('powershell.exe\r');
-            term.write('node.exe\r');
+          let output = '';
+          const onData = (data: string): void => { output += data; };
+          term.on('data', onData);
+          const exited = new Promise<void>(resolve => term.once('exit', () => resolve()));
+          try {
+            await new Promise<void>(resolve => {
+              let started = false;
+              const startPolling = (): void => {
+                if (started) {
+                  return;
+                }
+                if (term.pid === 0) {
+                  setTimeout(startPolling, 50);
+                  return;
+                }
+                started = true;
+                resolve();
+              };
+              if (term.pid > 0) {
+                startPolling();
+              } else {
+                socket.once('ready_datapipe', () => setTimeout(startPolling, 50));
+              }
+            });
+            // Start the same three-process chain without a user shell profile.
+            term.write('powershell.exe -NoLogo -NoProfile\r');
+            term.write('[Console]::WriteLine("LUMINE_TREE_POWERSHELL=" + $PID)\r');
+            term.write(`node.exe -i -e "console.log('LUMINE_TREE_NODE=' + process.pid + ':' + process.ppid)"\r`);
             console.log('start poll for tree size');
-            pollForProcessTreeSize(term.pid, 3, 500, 5000).then(list => {
-              assert.strictEqual(list[0].name.toLowerCase(), 'cmd.exe');
-              assert.strictEqual(list[1].name.toLowerCase(), 'powershell.exe');
-              assert.strictEqual(list[2].name.toLowerCase(), 'node.exe');
-              term.kill();
-              const desiredState: IProcessState = {};
-              desiredState[list[0].pid] = false;
-              desiredState[list[1].pid] = false;
-              desiredState[list[2].pid] = false;
-              term.on('exit', () => {
-                pollForProcessState(desiredState, 1000, 5000).then(() => {
-                  done();
-                }).catch(done);
-              });
-            }).catch(done);
-          };
-
-          if (term.pid > 0) {
-            startPolling();
-          } else {
-            socket.once('ready_datapipe', () => setTimeout(startPolling, 50));
+            const list = await pollForProcessTreeSize(() => {
+              const powershell = /LUMINE_TREE_POWERSHELL=(\d+)/.exec(output);
+              const node = /LUMINE_TREE_NODE=(\d+):(\d+)/.exec(output);
+              if (!powershell || !node) {
+                return undefined;
+              }
+              assert.strictEqual(Number(node[2]), Number(powershell[1]));
+              return [term.pid, Number(powershell[1]), Number(node[1])];
+            }, 3, 500, 5000);
+            assert.strictEqual(list[0].name.toLowerCase(), 'cmd.exe');
+            assert.strictEqual(list[1].name.toLowerCase(), 'powershell.exe');
+            assert.strictEqual(list[2].name.toLowerCase(), 'node.exe');
+            const desiredState: IProcessState = {};
+            desiredState[list[0].pid] = false;
+            desiredState[list[1].pid] = false;
+            desiredState[list[2].pid] = false;
+            term.kill();
+            await exited;
+            await pollForProcessState(desiredState, 1000, 5000);
+          } finally {
+            term.removeListener('data', onData);
+            term.kill();
+            await exited;
           }
         });
       });
