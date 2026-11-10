@@ -51,13 +51,6 @@
       }, {
         'cflags': ['-O2', '-fstack-protector-strong'],
       }],
-      ['OS=="mac"', {
-        'xcode_settings': {
-          'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
-          'CLANG_CXX_LIBRARY': 'libc++',
-          'MACOSX_DEPLOYMENT_TARGET': '10.7',
-        },
-      }],
     ],
   },
   'conditions': [
@@ -112,6 +105,13 @@
               'libraries!': [
                 '-lutil'
               ]
+            }],
+            ['OS=="mac"', {
+              'xcode_settings': {
+                'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+                'CLANG_CXX_LIBRARY': 'libc++',
+                'MACOSX_DEPLOYMENT_TARGET': '10.7',
+              },
             }],
             ['OS=="linux"', {
               'variables': {
@@ -181,7 +181,9 @@
             'src/unix/spawn-helper.cc',
           ],
           "xcode_settings": {
-            "MACOSX_DEPLOYMENT_TARGET":"10.7"
+            "MACOSX_DEPLOYMENT_TARGET":"10.7",
+            "GCC_ENABLE_CPP_EXCEPTIONS":"YES",
+            "CLANG_CXX_LIBRARY":"libc++"
           }
         },
       ]
